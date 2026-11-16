@@ -402,25 +402,6 @@ body[data-ds-dark-theme] .dsh-inject,
   white-space: pre-wrap; word-break: break-all;
 }
 
-/* Keysmith 规则库卡片列表 */
-.dsh-inject .inject-hub-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
-.dsh-inject .inject-hub-card {
-  border: 1px solid var(--inject-border); border-radius: 8px;
-  background: var(--inject-bg-card); padding: 12px 14px;
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 12px; transition: border-color 0.15s, background 0.15s;
-}
-.dsh-inject .inject-hub-card:hover {
-  border-color: var(--inject-border-focus); background: var(--inject-bg-subcard);
-}
-.dsh-inject .inject-hub-card-main { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.dsh-inject .inject-hub-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.dsh-inject .inject-hub-title { font-size: 14px; font-weight: 600; color: var(--inject-text-primary); }
-.dsh-inject .inject-hub-desc { font-size: 12px; color: var(--inject-text-secondary); line-height: 1.45; }
-.dsh-inject .inject-hub-meta { font-size: 11px; color: var(--inject-text-tertiary); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.dsh-inject .inject-hub-meta a { color: var(--inject-brand); text-decoration: none; }
-.dsh-inject .inject-hub-meta a:hover { text-decoration: underline; }
-
 /* 首次打开的导入引导 */
 .dsh-inject .inject-guide {
   display: flex; justify-content: space-between; align-items: center; gap: 14px;

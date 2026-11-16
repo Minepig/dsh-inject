@@ -9,7 +9,7 @@
 
 - **三种注入手段**：系统提示词注入（系统段）、构造回合伪造（system / 用户 / 助手 / 工具）、关键词与正则替换。
 - **四种使用方式**：挂在某个模式上（切换到该模式自动生效）、会话内随时 `/inject on|off`、标记为总是启用、按模型或 agent preset 限定——同一个插件可以让不同模型跑不同的预设。
-- **现成预设**：内置 `unrestricted`（Keysmith v0.6.0 交付契约）与 `authority`；预设库可一键导入 **dsh-purge 破甲稿**、**NSFW 成人向预设**与其余 Keysmith 稿。
+- **现成预设**：内置 `unrestricted`（Keysmith v0.6.0 交付契约）与 `authority`；其余的破甲稿、成人向预设与 Keysmith 稿可以从上游仓库复制正文，在「导入 / 导出 → JSON 导入」里粘贴预设 JSON，或直接新建预设。
 
 每次注入都会在会话里留下一条可折叠的记录行，写明这次注入了什么。
 
@@ -102,7 +102,7 @@ dsh plugin --profile web add github:john-walks-slow/dsh-inject
 - **`unrestricted`**：Keysmith v0.6.0 的 overlay 交付契约适配稿。上游把它列为当前默认安装稿；这里去掉作者个人称呼与 `[P]` 首行标记，保留执行行为，只约束交付物形态，并附常用边界词中性化替换。默认开启「创建为模式」，注入模式 `inject-unrestricted`。
 - **`authority`**：把 DSH 渲染的工作区指令免责句（“may be relevant / do not override”）改写为强制指令，并附一段简短的「操作者权威 + 先交付后解释」系统段；默认关闭，用 `/inject on authority` 启用。
 
-`dsh-purge 破甲稿` 与 `nsfw` 不随包分发：插件装好后第一次打开设置页会有导入引导，在「导入 / 导出 → 预设库」点一次即可从 [dsh-inject-presets](https://github.com/john-walks-slow/dsh-inject-presets) 拉取正文，导入后写入本地配置，之后离线可用。这样 npm 包本身只含注入引擎与中性预设。
+`dsh-purge 破甲稿` 与 `nsfw` 不随包分发：需要时从 [dsh-inject-presets](https://github.com/john-walks-slow/dsh-inject-presets) 取得正文，按完整预设 JSON 在「导入 / 导出 → JSON 导入」里粘贴，写入本地配置后离线可用。这样 npm 包本身只含注入引擎与中性预设。
 
 每一个 inject preset 都可以 toggle「创建为模式」开关。开启后，插件会向宿主动态注册名为 `inject-{id}` 的 agent preset：能力取宿主 `standard` 预设（工具集、工作区指令（AGENTS.md）读取、skills、工具说明与 plan 政策等系统段全部保留），只把 persona 那句身份清空——标准模式的「你是编码 agent」不再出现，该模式的文字由对应 inject preset 自己的系统段与构造回合按会话供给。会话顶部切换至该模式时，对应 inject 预设自动生效。过去的「总是启用」以及「限定 agent preset / 模型」筛选作为高级选项保留。没有 `agentPresets` 服务、或没有声明 `standard` 预设的 profile（例如 headless）不会注册模式，inject 预设仍可用 `/inject` 手动启用。
 
@@ -112,18 +112,18 @@ dsh plugin --profile web add github:john-walks-slow/dsh-inject
 
 - **默认预设**：内置 `unrestricted`，是上游 v0.6.0 `examples/gpt-overlay.md` 的适配稿——保留交付契约的结构与措辞，去掉作者个人称呼、`[P]` 首行标记以及与 DSH 无关的评测段。
 - **格式直接适配**：规则对象直接兼容 Keysmith 格式（`{ "from": "...", "to": "..." }`），自动映射为 `pattern`、`replacement` 并绑定至用户输入（`targets: ["user"]`）。
-- **一键导入**：设置页的预设库提供其余 Keysmith 稿（Unrestricted / Contract / Lean / Astra / Persona Contract / Claude / Grok）的在线导入。导入的是上游正文；附加的边界词替换规则由本插件提供，不是上游内容。
+- **手工导入**：设置页的「JSON 导入」接受 Keysmith 规则数组、`{ rules: [...] }` 与完整预设 JSON。其余 Keysmith 稿（Unrestricted / Contract / Lean / Astra / Persona Contract / Claude / Grok）的正文可以从上游仓库复制，作为系统段或 system 构造回合放进自建预设；附加的边界词替换规则由本插件提供，不是上游内容。
 - **安全保护机制**：对以 `/` 开头的斜杠命令以及 `<system-reminder>`、`<command-name>` 等系统注入标签自动跳过改写，避免误伤系统指令或命令参数。唯一例外是显式选择「工作区指令」目标的规则：它只改写 `source.kind === "agent-instructions"` 的工作区指令段。
 
 ## 从 dsh-purge 迁移
 
 [dsh-purge](https://github.com/YuJunZhiXue/dsh-purge)（[镜像](https://github.com/mmparko/dsh-purge)）是 DSH 社区早期最流行的破甲插件，原仓库已删除、上游停更。它的做法是给宿主落盘打补丁；本插件不改宿主，因此可以把它那篇提示词作为**普通预设**导入：
 
-设置页 →「导入 / 导出」→「预设库」→「dsh-purge 破甲稿」→ 导入，然后 `/inject on dsh-purge` 启用。正文来自 [dsh-inject-presets](https://github.com/john-walks-slow/dsh-inject-presets) 仓库，导入时拉取一次。
+设置页 →「导入 / 导出」→「JSON 导入」，把正文放进完整预设 JSON 粘贴进去，然后 `/inject on dsh-purge` 启用。正文来自 [dsh-inject-presets](https://github.com/john-walks-slow/dsh-inject-presets) 仓库，复制一次即可。
 
-- 正文与 dsh-purge v1.1.71 的原稿逐字一致（原文以 AES-256-GCM 密封在其 `lib/asset-table.js`，这里只把换行统一成 LF），放在独立仓库维护。导入后可自由编辑、删除。
+- 正文与 dsh-purge v1.1.71 的原稿逐字一致（原文以 AES-256-GCM 密封在其 `lib/asset-table.js`，这里只把换行统一成 LF），放在独立仓库维护。粘贴后可自由编辑、删除。
 - 导入后作为 **system 构造回合**注入，也就是说在 minimal 等 complete 系统提示模式下同样生效。
-- 不默认启用、不自动包含：只有点过「导入」的会话/配置里才有它。
+- 不默认启用、不自动包含：只有粘贴导入过的配置里才有它。
 - 出处与许可：作者 **YuJunZhiXue（小杨）**，MIT License，`Copyright (c) 2026 小杨`。原作者的署名要求与非盈利条款一并沿用：不得用于卖课、卖插件、卖 token、倒卖等收费行为。
 - 该稿约 21000 字符（约 7–9K tokens），每轮都会随请求发出；作者本人也说明公开稿用的人越多、被模型标记后效果越差。需要更省 token 的常驻方案时，用内置的 `authority` 预设。
 
@@ -142,7 +142,7 @@ dsh plugin --profile web add github:john-walks-slow/dsh-inject
 
 ## 致谢
 
-- **[Keysmith](https://github.com/Jia-Ethan/codex-keysmith)** —— 作者 [Jia-Ethan](https://github.com/Jia-Ethan)，MIT License。本插件的 `unrestricted` 预设取自其 v0.6.0 的 [`examples/gpt-overlay.md`](https://github.com/Jia-Ethan/codex-keysmith/blob/main/examples/gpt-overlay.md)，规则格式也直接兼容 Keysmith。同系列还有 [claude-keysmith](https://github.com/Jia-Ethan/claude-keysmith) 与 [grok-keysmith](https://github.com/Jia-Ethan/grok-keysmith)，预设库里的其余在线稿都来自这两个仓库。
+- **[Keysmith](https://github.com/Jia-Ethan/codex-keysmith)** —— 作者 [Jia-Ethan](https://github.com/Jia-Ethan)，MIT License。本插件的 `unrestricted` 预设取自其 v0.6.0 的 [`examples/gpt-overlay.md`](https://github.com/Jia-Ethan/codex-keysmith/blob/main/examples/gpt-overlay.md)，规则格式也直接兼容 Keysmith。同系列还有 [claude-keysmith](https://github.com/Jia-Ethan/claude-keysmith) 与 [grok-keysmith](https://github.com/Jia-Ethan/grok-keysmith)，本插件的规则格式同样兼容这两份上游稿。
 
 ## License
 

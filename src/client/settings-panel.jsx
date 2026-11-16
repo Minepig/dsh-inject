@@ -13,10 +13,7 @@ import {
   cloneTemplate,
   parseKeysmithRules,
   parsePresets,
-  simulateReplacement,
-  REMOTE_PRESET_CATALOG,
-  fetchRemoteText,
-  assemblePresetFromRemote
+  simulateReplacement
 } from "./config-store.js";
 import { defaultPresets, ruleError, safeId } from "../schema.js";
 
@@ -26,9 +23,6 @@ const ROLES = [
   { id: "tool", label: "工具" },
   { id: "instructions", label: "工作区指令" }
 ];
-
-/** 预设库列表：正文不随插件分发，导入时从上游仓库实时拉取。 */
-const HUB_ENTRIES = REMOTE_PRESET_CATALOG.map(meta => ({ meta }));
 
 const TURN_ROLES = [
   { id: "system", label: "系统", className: "system" },
@@ -684,52 +678,18 @@ function PlaygroundPanel({ presets }) {
   );
 }
 
-function HubCard({ meta, busy, onImport }) {
-  return (
-    <div className="inject-hub-card">
-      <div className="inject-hub-card-main">
-        <div className="inject-hub-title-row">
-          <span className="inject-hub-title">{meta.name}</span>
-          <span className="inject-badge" style={{ background: "var(--inject-brand-bg)", color: "var(--inject-brand)" }}>
-            {meta.tag}
-          </span>
-          <span className="inject-badge" style={{ background: "var(--inject-success-bg)", color: "var(--inject-success)", fontSize: 10 }}>
-            {meta.license}
-          </span>
-        </div>
-        <div className="inject-hub-desc">{meta.description}</div>
-        <div className="inject-hub-meta">
-          来源: <a href={meta.repo} target="_blank" rel="noreferrer">{meta.author}</a>
-          {` · 规则: ${(meta.rules ?? []).length} 条`}
-        </div>
-      </div>
-      <div className="row" style={{ flexShrink: 0 }}>
-        <button type="button" className="primary sm" disabled={busy} onClick={() => onImport(meta)}>
-          {busy ? "导入中…" : "导入"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function ImportExportModal({
   isOpen,
   onClose,
   targetPreset,
   onImportRules,
   onImportPresets,
-  allConfig,
-  onAppendPreset
+  allConfig
 }) {
-  const [tab, setTab] = useState("hub");
+  const [tab, setTab] = useState("import");
   const [importMode, setImportMode] = useState("append");
   const [rawText, setRawText] = useState("");
   const [parseResult, setParseResult] = useState(null);
-
-  const [fetchingId, setFetchingId] = useState("");
-  const [fetchNotice, setFetchNotice] = useState("");
-  const [customUrl, setCustomUrl] = useState("");
-  const [customName, setCustomName] = useState("");
 
   useEffect(() => {
     if (!rawText.trim()) {
@@ -746,50 +706,6 @@ function ImportExportModal({
   }, [rawText]);
 
   if (!isOpen) return null;
-
-  const handleLiveFetch = async (meta) => {
-    setFetchingId(meta.id);
-    setFetchNotice(`正在导入「${meta.name}」...`);
-    try {
-      const text = await fetchRemoteText(meta.url);
-      const assembled = assemblePresetFromRemote(meta, text);
-      onAppendPreset(assembled);
-      setFetchNotice(`✓ 已导入「${meta.name}」`);
-      setTimeout(() => setFetchNotice(""), 3000);
-    } catch (err) {
-      setFetchNotice(`✕ 导入失败：${err.message}`);
-    } finally {
-      setFetchingId("");
-    }
-  };
-
-  const handleCustomFetch = async () => {
-    const url = customUrl.trim();
-    if (!url) return;
-    setFetchingId("custom");
-    setFetchNotice(`正在拉取链接内容...`);
-    try {
-      const text = await fetchRemoteText(url);
-      const fileName = new URL(url).pathname.split("/").pop() || "remote";
-      const meta = {
-        id: customName.trim() || fileName.replace(/\.[^.]+$/, ""),
-        name: customName.trim() || `远程规则 (${fileName})`,
-        description: `来源: ${url}`,
-        url,
-        rules: []
-      };
-      const assembled = assemblePresetFromRemote(meta, text);
-      onAppendPreset(assembled);
-      setFetchNotice(`✓ 已导入「${assembled.id}」`);
-      setCustomUrl("");
-      setCustomName("");
-      setTimeout(() => setFetchNotice(""), 3000);
-    } catch (err) {
-      setFetchNotice(`✕ 导入失败：${err.message}`);
-    } finally {
-      setFetchingId("");
-    }
-  };
 
   const handleImport = () => {
     if (!parseResult || !parseResult.ok) return;
@@ -821,13 +737,6 @@ function ImportExportModal({
         <div className="inject-tabs">
           <button
             type="button"
-            className={`inject-tab-btn ${tab === "hub" ? "active" : ""}`}
-            onClick={() => setTab("hub")}
-          >
-            预设库
-          </button>
-          <button
-            type="button"
             className={`inject-tab-btn ${tab === "import" ? "active" : ""}`}
             onClick={() => setTab("import")}
           >
@@ -841,70 +750,6 @@ function ImportExportModal({
             导出配置
           </button>
         </div>
-
-        {fetchNotice && (
-          <div style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            marginBottom: 10,
-            fontSize: 12,
-            background: fetchNotice.startsWith("✓") ? "var(--inject-success-bg)" : (fetchNotice.startsWith("✕") ? "var(--inject-danger-bg)" : "var(--inject-brand-bg)"),
-            color: fetchNotice.startsWith("✓") ? "var(--inject-success)" : (fetchNotice.startsWith("✕") ? "var(--inject-danger)" : "var(--inject-brand)")
-          }}>
-            {fetchNotice}
-          </div>
-        )}
-
-        {tab === "hub" && (
-          <div className="col" style={{ gap: 14 }}>
-            <div className="inject-hub-list">
-              {HUB_ENTRIES.map(({ meta }) => (
-                <HubCard
-                  key={meta.id}
-                  meta={meta}
-                  busy={fetchingId === meta.id}
-                  onImport={handleLiveFetch}
-                />
-              ))}
-            </div>
-
-            <div style={{
-              border: "1px dashed var(--inject-border)",
-              borderRadius: 8,
-              padding: 12,
-              background: "var(--inject-bg-card)"
-            }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>自定义链接导入</span>
-              <p className="hint-text" style={{ margin: "4px 0 8px" }}>
-                公开的 Markdown / JSON 链接。
-              </p>
-              <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                <input
-                  type="text"
-                  style={{ flex: "2 1 240px" }}
-                  value={customUrl}
-                  onChange={e => setCustomUrl(e.target.value)}
-                  placeholder="https://raw.githubusercontent.com/.../rules.md"
-                />
-                <input
-                  type="text"
-                  style={{ flex: "1 1 120px" }}
-                  value={customName}
-                  onChange={e => setCustomName(e.target.value)}
-                  placeholder="预设 id（可选）"
-                />
-                <button
-                  type="button"
-                  className="sm"
-                  disabled={!customUrl.trim() || fetchingId === "custom"}
-                  onClick={handleCustomFetch}
-                >
-                  {fetchingId === "custom" ? "导入中…" : "导入"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {tab === "import" && (
           <div className="col" style={{ gap: 12 }}>
@@ -1053,13 +898,6 @@ export function SettingsPanel({ scope }) {
     }));
   };
 
-  const handleAppendPreset = (newPreset) => {
-    setDraft(current => ({
-      ...current,
-      presets: [...current.presets, ...withUniqueIds(current.presets, [newPreset])]
-    }));
-  };
-
   // 离开页面前提示未保存改动
   useEffect(() => {
     if (!dirty) return undefined;
@@ -1083,8 +921,8 @@ export function SettingsPanel({ scope }) {
       {showGuide && (
         <div className="inject-guide">
           <div className="inject-guide-text">
-            <strong>先导入一个预设</strong>
-            <p>插件只自带 `unrestricted` 与 `authority`。预设库里的 dsh-purge 破甲稿、NSFW 与 Keysmith 稿需要点一次「导入」从上游仓库拉取，导入后写入本地配置，之后离线可用。</p>
+            <strong>先添加一个预设</strong>
+            <p>插件只自带 `unrestricted` 与 `authority`。需要其它预设时，可以在「导入 / 导出」里粘贴预设 JSON，也可以直接新建一个预设。</p>
           </div>
           <div className="row" style={{ gap: 8, flexShrink: 0 }}>
             <button
@@ -1092,7 +930,7 @@ export function SettingsPanel({ scope }) {
               className="primary sm"
               onClick={() => setModalState({ open: true, targetPreset: null })}
             >
-              打开预设库
+              打开导入
             </button>
             <button type="button" className="ghost sm" onClick={dismissGuide}>知道了</button>
           </div>
@@ -1250,7 +1088,6 @@ export function SettingsPanel({ scope }) {
         onImportRules={handleImportRules}
         onImportPresets={handleImportPresets}
         allConfig={draft}
-        onAppendPreset={handleAppendPreset}
       />
 
       {dirty && (
